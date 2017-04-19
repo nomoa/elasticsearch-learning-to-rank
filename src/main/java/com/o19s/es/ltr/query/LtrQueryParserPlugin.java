@@ -16,9 +16,7 @@
  */
 package com.o19s.es.ltr.query;
 
-import ciir.umass.edu.learning.Ranker;
-import ciir.umass.edu.learning.RankerFactory;
-import org.elasticsearch.common.settings.Setting;
+import com.o19s.es.ltr.ranker.ranklib.RankLibScriptEngine;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryParseContext;
 import org.elasticsearch.index.query.QueryParser;
