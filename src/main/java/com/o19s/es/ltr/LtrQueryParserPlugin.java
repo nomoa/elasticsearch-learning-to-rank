@@ -41,5 +41,4 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
     public ScriptEngineService getScriptEngineService(Settings settings) {
         return new RankLibScriptEngine(settings);
     }
-
 }
