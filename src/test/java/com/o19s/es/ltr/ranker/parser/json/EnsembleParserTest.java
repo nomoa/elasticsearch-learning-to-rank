@@ -15,8 +15,7 @@
  */
 package com.o19s.es.ltr.ranker.parser.json;
 
-import com.o19s.es.ltr.ranker.parser.json.tree.ParsedEnsemble;
-import org.junit.Test;
+import com.o19s.es.ltr.ranker.parser.json.tree.EnsembleLtrParser;
 
 import java.io.IOException;
 
@@ -68,7 +67,7 @@ public class EnsembleParserTest extends JsonModelParsingTest {
                         " \"weight\": 0.1, " +
                          "\"id\": \"fuzzy-kittehs\"}]} ";
 
-        ParsedEnsemble ens = ParsedEnsemble.parse(makeXContent(ensemble));
+        EnsembleLtrParser ens = EnsembleLtrParser.parse(makeXContent(ensemble));
         assertEquals(ens.trees().get(0).weight(), 0.5, 0.01);
         assertEquals(ens.trees().get(0).id(), "1");
 

@@ -21,6 +21,7 @@ import com.o19s.es.ltr.feature.store.index.Caches;
 import com.o19s.es.ltr.query.LtrQueryBuilder;
 import com.o19s.es.ltr.query.StoredLtrQueryBuilder;
 import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
+import com.o19s.es.ltr.ranker.parser.json.tree.EnsembleLtrParser;
 import com.o19s.es.ltr.ranker.ranklib.RankLibScriptEngine;
 import com.o19s.es.ltr.ranker.ranklib.RanklibModelParser;
 import com.o19s.es.ltr.utils.FeatureStoreProvider;
@@ -45,6 +46,7 @@ public class LtrQueryParserPlugin extends Plugin implements SearchPlugin, Script
         caches = new Caches(settings);
         parserFactory = new LtrRankerParserFactory.Builder()
                 .register(RanklibModelParser.TYPE, () -> new RanklibModelParser(getRanklibFactory()))
+                .register(EnsembleLtrParser.NAME, EnsembleLtrParser::new)
                 .build();
     }
 

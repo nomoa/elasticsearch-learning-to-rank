@@ -19,7 +19,7 @@
 //import com.fasterxml.jackson.core.JsonParser;
 //import com.o19s.es.ltr.feature.FeatureSet;
 //import com.o19s.es.ltr.ranker.LtrRanker;
-//import com.o19s.es.ltr.ranker.parser.json.tree.ParsedEnsemble;
+//import com.o19s.es.ltr.ranker.parser.json.tree.EnsembleLtrParser;
 //import org.elasticsearch.common.ParseField;
 //import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 //import org.elasticsearch.common.xcontent.ObjectParser;

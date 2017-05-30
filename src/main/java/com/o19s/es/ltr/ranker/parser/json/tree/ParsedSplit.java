@@ -15,11 +15,12 @@
  */
 package com.o19s.es.ltr.ranker.parser.json.tree;
 
+import com.o19s.es.ltr.feature.FeatureSet;
 import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 
-import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -27,79 +28,30 @@ import java.util.Objects;
  */
 public class ParsedSplit {
     public static final String NAME = "json-ltr-split-parser";
-    private static final ObjectParser<ParsedSplit, ParsedSplit.SplitContext> PARSER;
-    private static final ObjectParser<SplitOrOutput, ParsedSplit.SplitContext> OUTPUT_OR_SPLIT_PARSER;
+    public static final ObjectParser<ParsedSplit, FeatureSet> PARSER;
 
 
     static {
         PARSER = new ObjectParser<>(NAME, ParsedSplit::new);
-        PARSER.declareString((split, featureName) -> split.featureName(featureName),
-                             new ParseField("feature"));
-
-        PARSER.declareDouble((split, thresholdValue) -> split.threshold(thresholdValue),
+        PARSER.declareString(ParsedSplit::featureName,
+                new ParseField("feature"));
+        PARSER.declareDouble(ParsedSplit::threshold,
                 new ParseField("threshold"));
-
         PARSER.declareObject( ParsedSplit::lhs,
-                              (xParser, context) -> context.parseOutputOrSplit(xParser),
-                              new ParseField("lhs"));
-
+                PARSER::parse,
+                new ParseField("lhs"));
         PARSER.declareObject( ParsedSplit::rhs,
-                (xParser, context) -> context.parseOutputOrSplit(xParser),
+                ParsedSplit::parse,
                 new ParseField("rhs"));
-
-        // In the child objects, we'll eithre encounter another split, or an output value
-        OUTPUT_OR_SPLIT_PARSER = new ObjectParser<>(NAME, SplitOrOutput::new);
-        OUTPUT_OR_SPLIT_PARSER.declareDouble((split, outputValue) -> split.setOutput(outputValue),
-                                            new ParseField("output"));
-
-        OUTPUT_OR_SPLIT_PARSER.declareObject( (splitOrObj, newSplit) -> splitOrObj.setSplit(newSplit),
-                (xParser, context) -> context.parseSplit(xParser),
-                new ParseField("split"));
-
+        PARSER.declareObject( ParsedSplit::rhs,
+                ParsedSplit::parse,
+                new ParseField("rhs"));
+        PARSER.declareDouble( ParsedSplit::output,
+                new ParseField("output"));
 
     }
 
-
-    public static class SplitOrOutput {
-
-        public ParsedSplit split;
-
-        public SplitOrOutput() {
-            split = null;
-        }
-
-        public void setOutput(double out) {
-            split = new ParsedSplit();
-            split.output(out);
-        }
-
-
-        public void setSplit(Object out) {
-            split = (ParsedSplit)out;
-        }
-
-    }
-
-
-    public static class SplitContext {
-
-        public ParsedSplit parseOutputOrSplit(XContentParser parser) throws IOException {
-            SplitOrOutput splOrOut = OUTPUT_OR_SPLIT_PARSER.parse(parser, new SplitContext());
-            return splOrOut.split;
-        }
-
-        public ParsedSplit parseSplit(XContentParser parser) throws IOException {
-            return ParsedSplit.parse(parser);
-        }
-
-    }
-
-    public ParsedSplit() {
-    }
-
-
-
-    public void output(double val) {_output = val;  _isLeaf = true;}
+    public void output(double val) {_output = val;}
 
     public String featureName() {
         return _featureName;
@@ -125,9 +77,13 @@ public class ParsedSplit {
         return _featureName;
     }
 
-    public boolean isLeaf() {return _isLeaf;}
-
-
+    public boolean isLeaf() {return _output != null;}
+    public boolean isSplit() {
+        return _featureName != null || _rhs != null || _lhs != null || _threshold != null;
+    }
+    public boolean isValidSplit() {
+        return _featureName != null && _rhs != null && _lhs != null && _threshold != null;
+    }
 
     public void threshold(double val) {
         _threshold = val;
@@ -142,18 +98,24 @@ public class ParsedSplit {
     public void rhs(ParsedSplit split)  { _rhs = Objects.requireNonNull(split); }
 
 
-
-    public static ParsedSplit parse(XContentParser xParser) throws IOException {
-        return PARSER.parse(xParser, new SplitContext());
+    public static ParsedSplit parse(XContentParser xParser, FeatureSet context) {
+        ParsedSplit split = PARSER.apply(xParser, context);
+        if (split.feature() != null && !context.hasFeature(split.feature())) {
+            throw new ParsingException(xParser.getTokenLocation(), "Unknown feature [" + split.feature() + "]");
+        }
+        if (split.isLeaf() && split.isSplit()) {
+            throw new ParsingException(xParser.getTokenLocation(), "Invalid split, [output] used with either [rhs], [lhs], [feature] or [threshold]");
+        }
+        if (split.isSplit() && !split.isValidSplit()) {
+            throw new ParsingException(xParser.getTokenLocation(), "Invalid split missing [rhs], [lhs], [feature] or [threshold]");
+        }
+        return split;
     }
 
     private String _featureName;
-    private double _threshold;
-    private double _output;
+    private Double _threshold;
+    private Double _output;
     private ParsedSplit _lhs;
     private ParsedSplit _rhs;
-    private double _weight = 1.0;
     private boolean _isLeaf = false;
-
-
 }

@@ -30,7 +30,7 @@ public class ParsedForest {
     private static final ObjectParser<ParsedForest, ParsedForest.Context> PARSER;
 
 
-    private List<ParsedEnsemble> _ensembles;
+    private List<EnsembleLtrParser> _ensembles;
     static {
         PARSER = new ObjectParser<>(NAME, ParsedForest::new);
         PARSER.declareObjectArray(
@@ -43,17 +43,17 @@ public class ParsedForest {
 
     public static class Context {
 
-        ParsedEnsemble parseEnsemble(XContentParser xContent) throws IOException {
-            return ParsedEnsemble.parse(xContent);
+        EnsembleLtrParser parseEnsemble(XContentParser xContent) throws IOException {
+            return EnsembleLtrParser.parse(xContent);
         }
 
     }
 
-    void ensembles(List<ParsedEnsemble> ensembles) {
+    void ensembles(List<EnsembleLtrParser> ensembles) {
         _ensembles = ensembles;
     }
 
-    public List<ParsedEnsemble> ensembles() {
+    public List<EnsembleLtrParser> ensembles() {
         return _ensembles;
     }
 

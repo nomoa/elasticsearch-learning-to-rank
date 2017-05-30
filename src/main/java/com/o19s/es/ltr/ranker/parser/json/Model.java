@@ -15,22 +15,15 @@
  */
 package com.o19s.es.ltr.ranker.parser.json;
 
-import ciir.umass.edu.learning.tree.RFRanker;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.ranker.LtrRanker;
-import com.o19s.es.ltr.ranker.dectree.NaiveAdditiveDecisionTree;
 import com.o19s.es.ltr.ranker.parser.json.linear.LinearCombination;
-import com.o19s.es.ltr.ranker.parser.json.tree.ParsedEnsemble;
-import com.o19s.es.ltr.ranker.parser.json.tree.ParsedForest;
-import com.o19s.es.ltr.ranker.parser.json.tree.ParsedSplit;
-import com.o19s.es.ltr.ranker.parser.json.tree.ParsedTree;
+import com.o19s.es.ltr.ranker.parser.json.tree.EnsembleLtrParser;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Created by doug on 5/28/17.
@@ -71,7 +64,7 @@ public class Model {
         }
 
         LtrRanker parseMart(XContentParser xContent) throws IOException {
-            return ParsedEnsemble.parse(xContent).toRanker(_reg);
+            return EnsembleLtrParser.parse(xContent).toRanker(_reg);
         }
 
         LtrRanker parseLinear(XContentParser xContent) throws IOException {
