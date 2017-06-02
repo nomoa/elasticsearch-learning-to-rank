@@ -116,6 +116,8 @@ The format of a model is:
 To use a custom store simply prefix with the name of the store:
 `/_ltr/custom_store/_model/model_name`
 
+The type must one of the models supported, see [supported models](models.md)
+
 ### Create a model from an existing set
 
 A model can be created by using an existing feature set:
