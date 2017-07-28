@@ -111,6 +111,17 @@ public class StoredFeatureParserTests extends LuceneTestCase {
                 equalTo("Field [name] is mandatory"));
     }
 
+    public void testParseErrorOnBadTemplate() throws IOException {
+        String featureString = "{\n" +
+                "\"name\": \"testFeature\",\n" +
+                "\"params\":[\"param1\",\"param2\"]," +
+                "\"template_language\":\"mustache\",\n" +
+                "\"template\": \"{{hop\"" +
+                "}";
+        assertThat(expectThrows(ParsingException.class, () -> parse(featureString)).getMessage(),
+                containsString("Improperly closed variable"));
+    }
+
     public void testParseErrorOnMissingTemplate() throws IOException {
         String featureString = "{\n" +
                 "\"name\":\"testFeature\"," +
@@ -166,7 +177,7 @@ public class StoredFeatureParserTests extends LuceneTestCase {
                 new MatchQueryBuilder("match_field", "match_word").toString(NOT_PRETTY).replace("\"", "\\\"") +
                 "\"}";
         StoredFeature feature = parse(featureString);
-        long approxSize = featureString.length()*Character.BYTES;
+        long approxSize = featureString.length()*Character.BYTES*2;
         assertThat(feature.ramBytesUsed(),
                 allOf(greaterThan((long) (approxSize*0.66)),
                     lessThan((long) (approxSize*1.33))));

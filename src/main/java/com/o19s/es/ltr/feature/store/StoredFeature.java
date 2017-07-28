@@ -16,10 +16,13 @@
 
 package com.o19s.es.ltr.feature.store;
 
+import com.github.mustachejava.Mustache;
 import com.o19s.es.ltr.feature.Feature;
+import com.o19s.es.template.mustache.MustacheUtils;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.ParsingException;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -54,13 +57,20 @@ import static org.apache.lucene.util.RamUsageEstimator.NUM_BYTES_OBJECT_REF;
 
 public class StoredFeature implements Feature, Accountable, StorableElement {
     private static final long BASE_RAM_USED = RamUsageEstimator.shallowSizeOfInstance(StoredFeature.class);
-    private static final String DEFAULT_TEMPLATE_LANGUAGE = "mustache";
+    private static final String DEFAULT_TEMPLATE_LANGUAGE = MustacheUtils.TEMPLATE_LANGUAGE;
     public static final String TYPE = "feature";
     private final String name;
     private final List<String> queryParams;
     private final String templateLanguage;
     private final String template;
     private final boolean templateAsString;
+
+    /**
+     * mustache template cache (compiled if possible at object construction)
+     * TODO: revisit how and when we compile the template
+     */
+    @Nullable
+    private final transient Mustache compiledTemplate;
 
     private static final ObjectParser<ParsingState, Void> PARSER;
 
@@ -94,6 +104,11 @@ public class StoredFeature implements Feature, Accountable, StorableElement {
         this.templateLanguage = Objects.requireNonNull(templateLanguage);
         this.template = Objects.requireNonNull(template);
         this.templateAsString = storedAsString;
+        if (DEFAULT_TEMPLATE_LANGUAGE.equals(templateLanguage)) {
+            this.compiledTemplate = MustacheUtils.compile(name, template);
+        } else {
+            this.compiledTemplate = null;
+        }
     }
 
     public StoredFeature(StreamInput input) throws IOException {
@@ -102,6 +117,11 @@ public class StoredFeature implements Feature, Accountable, StorableElement {
         templateLanguage = input.readString();
         template = input.readString();
         templateAsString = input.readBoolean();
+        if (DEFAULT_TEMPLATE_LANGUAGE.equals(templateLanguage)) {
+            this.compiledTemplate = MustacheUtils.compile(name, template);
+        } else {
+            this.compiledTemplate = null;
+        }
     }
 
     public StoredFeature(String name, List<String> params, String templateLanguage, String template) {
@@ -182,9 +202,18 @@ public class StoredFeature implements Feature, Accountable, StorableElement {
             String names = missingParams.stream().collect(Collectors.joining(","));
             throw new IllegalArgumentException("Missing required param(s): [" + names + "]");
         }
-        ExecutableScript script = context.getExecutableScript(new Script(ScriptType.INLINE,
-                templateLanguage, template, params), ScriptContext.Standard.SEARCH);
-        Object source = script.run();
+        Object source;
+
+        if (compiledTemplate != null) {
+            source = MustacheUtils.execute(compiledTemplate, params);
+        } else {
+            assert !DEFAULT_TEMPLATE_LANGUAGE.equals(templateLanguage);
+            // XXX: we hope that in most case users will use mustache that is embedded in the plugin
+            // compiling the template engine from the script engine may hit a circuit breaker
+            ExecutableScript script = context.getExecutableScript(new Script(ScriptType.INLINE,
+                    templateLanguage, template, params), ScriptContext.Standard.SEARCH);
+            source = script.run();
+        }
 
         try {
             XContentParser parser = createParser(source, context.getXContentRegistry());
@@ -237,7 +266,7 @@ public class StoredFeature implements Feature, Accountable, StorableElement {
                         .mapToLong(x -> (Character.BYTES * x.length()) +
                                 NUM_BYTES_OBJECT_REF + NUM_BYTES_OBJECT_HEADER + NUM_BYTES_ARRAY_HEADER).sum() +
                 (Character.BYTES * templateLanguage.length()) + NUM_BYTES_ARRAY_HEADER +
-                (Character.BYTES * template.length()) + NUM_BYTES_ARRAY_HEADER;
+                ((Character.BYTES * template.length()) + NUM_BYTES_ARRAY_HEADER) * (compiledTemplate != null ? 2 : 1);
     }
 
     @Override
