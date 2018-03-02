@@ -39,6 +39,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
+import org.elasticsearch.common.CheckedFunction;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -122,6 +123,10 @@ public class RankerQuery extends Query {
     }
 
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
+    public LtrRanker getRanker() {
+        return ranker;
+    }
+
     @Override
     public boolean equals(Object obj) {
         // This query should never be cached
@@ -201,7 +206,7 @@ public class RankerQuery extends Query {
         return new RankerWeight(this, weights, ltrRankerWrapper, features);
     }
 
-    public static class RankerWeight extends Weight {
+    public static class RankerWeight extends Weight implements CheckedFunction<LeafReaderContext, List<Scorer>, IOException> {
         private final List<Weight> weights;
         private final FVLtrRankerWrapper ranker;
         private final FeatureSet features;
@@ -254,20 +259,31 @@ public class RankerQuery extends Query {
 
         @Override
         public RankerScorer scorer(LeafReaderContext context) throws IOException {
-            List<Scorer> scorers = new ArrayList<>(weights.size());
             DisiPriorityQueue disiPriorityQueue = new DisiPriorityQueue(weights.size());
-            for (Weight weight : weights) {
-                Scorer scorer = weight.scorer(context);
-                if (scorer == null) {
-                    scorer = new NoopScorer(this, DocIdSetIterator.empty());
-                }
-                scorers.add(scorer);
-                disiPriorityQueue.add(new DisiWrapper(scorer));
-            }
+            List<Scorer> scorers = buildScorers(context, true);
+            scorers.stream().map(DisiWrapper::new)
+                    .forEach(disiPriorityQueue::add);
 
             DisjunctionDISI rankerIterator = new DisjunctionDISI(
                     DocIdSetIterator.all(context.reader().maxDoc()), disiPriorityQueue);
             return new RankerScorer(scorers, rankerIterator, ranker);
+        }
+
+        @Override
+        public List<Scorer> apply(LeafReaderContext context) throws IOException {
+            return buildScorers(context, false);
+        }
+
+        public List<Scorer> buildScorers(LeafReaderContext context, boolean nullAsNoop) throws IOException {
+            List<Scorer> scorers = new ArrayList<>(weights.size());
+            for (Weight weight : weights) {
+                Scorer scorer = weight.scorer(context);
+                if ( nullAsNoop && scorer == null ) {
+                    scorer = new NoopScorer(weight, DocIdSetIterator.empty());
+                }
+                scorers.add(scorer);
+            }
+            return scorers;
         }
 
         class RankerScorer extends Scorer {
@@ -414,4 +430,5 @@ public class RankerQuery extends Query {
             return Objects.hash(wrapped, vectorSupplier);
         }
     }
+
 }
