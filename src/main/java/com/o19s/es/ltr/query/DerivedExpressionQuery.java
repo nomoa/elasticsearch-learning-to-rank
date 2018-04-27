@@ -16,8 +16,11 @@
 
 package com.o19s.es.ltr.query;
 
-import com.o19s.es.ltr.feature.FeatureSet;
-import com.o19s.es.ltr.ranker.LtrRanker;
+import java.io.IOException;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
+
 import org.apache.lucene.expressions.Bindings;
 import org.apache.lucene.expressions.Expression;
 import org.apache.lucene.index.LeafReaderContext;
@@ -33,40 +36,16 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.search.Weight;
 
-import java.io.IOException;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Supplier;
+import com.o19s.es.ltr.feature.FeatureSet;
+import com.o19s.es.ltr.ranker.LtrRanker;
 
-public class DerivedExpressionQuery extends Query {
+public class DerivedExpressionQuery extends Query implements LtrRewritableQuery {
     private final FeatureSet features;
     private final Expression expression;
 
     public DerivedExpressionQuery(FeatureSet features, Expression expr) {
         this.features = features;
         this.expression = expr;
-    }
-
-    @Override
-    public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
-        if (!needsScores) {
-            // If scores are not needed simply return a constant score on all docs
-            return new ConstantScoreWeight(this, boost) {
-                @Override
-                public boolean isCacheable(LeafReaderContext ctx) {
-                    return true;
-                }
-
-                @Override
-                public Scorer scorer(LeafReaderContext context) throws IOException {
-                    return new ConstantScoreScorer(this, score(), DocIdSetIterator.all(context.reader().maxDoc()));
-                }
-
-
-            };
-        }
-
-        return new FVWeight(this);
     }
 
     @Override
@@ -83,18 +62,78 @@ public class DerivedExpressionQuery extends Query {
     }
 
     @Override
+    public Query ltrRewrite(Supplier<LtrRanker.FeatureVector> vectorSuppler) {
+        return new FVDerivedExpressionQuery(this, vectorSuppler);
+    }
+
+    @Override
     public int hashCode() {
         return Objects.hash(expression, features);
     }
 
     @Override
     public String toString(String field) {
-        return "fv_query:"+field;
+        return (field != null ? field : "") + ":fv_query(" + expression.sourceText + ")";
     }
 
-    public class FVWeight extends FeatureVectorWeight {
-        protected FVWeight(Query query) {
-            super(query);
+    static final class FVDerivedExpressionQuery extends Query {
+        private final DerivedExpressionQuery query;
+        private final Supplier<LtrRanker.FeatureVector> fvSupplier;
+
+        FVDerivedExpressionQuery(DerivedExpressionQuery query, Supplier<LtrRanker.FeatureVector> fvSupplier) {
+            this.query = query;
+            this.fvSupplier = fvSupplier;
+        }
+
+        @Override
+        public String toString(String field) {
+            return query.toString();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return sameClassAs(obj) &&
+                    Objects.equals(this.query, ((FVDerivedExpressionQuery)obj).query) &&
+                    Objects.equals(this.fvSupplier, ((FVDerivedExpressionQuery)obj).fvSupplier);
+        }
+
+        @Override
+        public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
+            if (!needsScores) {
+                // If scores are not needed simply return a constant score on all docs
+                return new ConstantScoreWeight(this, boost) {
+                    @Override
+                    public boolean isCacheable(LeafReaderContext ctx) {
+                        return true;
+                    }
+
+                    @Override
+                    public Scorer scorer(LeafReaderContext context) throws IOException {
+                        return new ConstantScoreScorer(this, score(), DocIdSetIterator.all(context.reader().maxDoc()));
+                    }
+                };
+            }
+
+            return new FVWeight(this);
+        }
+
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(classHash(), query, fvSupplier);
+        }
+    }
+
+    static class FVWeight extends Weight {
+        private final FeatureSet features;
+        private final Expression expression;
+        private final Supplier<LtrRanker.FeatureVector> vectorSupplier;
+
+        FVWeight(FVDerivedExpressionQuery query) {
+            super(query.query);
+            features = query.query.features;
+            expression = query.query.expression;
+            vectorSupplier = query.fvSupplier;
         }
 
         @Override
@@ -103,7 +142,7 @@ public class DerivedExpressionQuery extends Query {
         }
 
         @Override
-        public Scorer scorer(LeafReaderContext context, Supplier<LtrRanker.FeatureVector> vectorSupplier) throws IOException {
+        public Scorer scorer(LeafReaderContext context) throws IOException {
             Bindings bindings = new Bindings(){
                 @Override
                 public DoubleValuesSource getDoubleValuesSource(String name) {
@@ -119,11 +158,11 @@ public class DerivedExpressionQuery extends Query {
         }
 
         @Override
-        public Explanation explain(LeafReaderContext context, LtrRanker.FeatureVector vector, int doc) throws IOException {
+        public Explanation explain(LeafReaderContext context, int doc) throws IOException {
             Bindings bindings = new Bindings(){
                 @Override
                 public DoubleValuesSource getDoubleValuesSource(String name) {
-                    return new FVDoubleValuesSource(() -> vector, features.featureOrdinal(name));
+                    return new FVDoubleValuesSource(vectorSupplier, features.featureOrdinal(name));
                 }
             };
 
@@ -223,7 +262,6 @@ public class DerivedExpressionQuery extends Query {
 
         @Override
         public int hashCode() {
-
             return Objects.hash(ordinal, vectorSupplier);
         }
 

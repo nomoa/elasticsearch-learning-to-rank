@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.WrapperQueryBuilder;
 import org.elasticsearch.search.rescore.QueryRescoreMode;
@@ -114,14 +115,26 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
 
         sr = sb.get();
         assertEquals(1, sr.getHits().getTotalHits());
-
         if(negativeScore) {
             assertThat(sr.getHits().getAt(0).getScore(), Matchers.lessThanOrEqualTo(-10.0f));
         } else {
             assertThat(sr.getHits().getAt(0).getScore(), Matchers.greaterThanOrEqualTo(10.0f));
         }
 
+        // Test profiling
+        sb = client().prepareSearch("test_index")
+                .setProfile(true)
+                .setQuery(QueryBuilders.matchQuery("field1", "world"))
+                .setRescorer(new QueryRescorerBuilder(new WrapperQueryBuilder(new StoredLtrQueryBuilder(LtrTestUtils.nullLoader())
+                        .modelName("my_model").params(params).toString()))
+                        .setScoreMode(QueryRescoreMode.Total)
+                        .setQueryWeight(0)
+                        .setRescoreQueryWeight(1));
 
+        sr = sb.get();
+        assertEquals(1, sr.getHits().getTotalHits());
+        assertFalse(sr.getProfileResults().isEmpty());
+        ESLoggerFactory.getLogger(sr.toString());
 
         StoredLtrModel model = getElement(StoredLtrModel.class, StoredLtrModel.TYPE, "my_model");
         CachesStatsNodesResponse stats = CachesStatsAction.INSTANCE.newRequestBuilder(client()).execute().get();

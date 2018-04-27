@@ -19,6 +19,8 @@ package com.o19s.es.ltr.utils;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import com.o19s.es.ltr.ranker.LtrRanker;
+
 public final class Suppliers {
     /**
      * Utility class
@@ -70,6 +72,24 @@ public final class Suppliers {
 
         public void set(T obj) {
             this.obj = obj;
+        }
+    }
+
+    /**
+     * Simple wrapper to make sure we run on the same thread
+     */
+    public static class FeatureVectorSupplier extends MutableSupplier<LtrRanker.FeatureVector> {
+        private final long threadId = Thread.currentThread().getId();
+
+        public LtrRanker.FeatureVector get() {
+            assert threadId == Thread.currentThread().getId();
+            return super.get();
+        }
+
+        @Override
+        public void set(LtrRanker.FeatureVector obj) {
+            assert threadId == Thread.currentThread().getId();
+            super.set(obj);
         }
     }
 }
