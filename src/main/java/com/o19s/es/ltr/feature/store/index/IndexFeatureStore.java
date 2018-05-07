@@ -16,18 +16,19 @@
 
 package com.o19s.es.ltr.feature.store.index;
 
-import static com.o19s.es.ltr.feature.store.StorableElement.generateId;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Objects;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-
+import com.o19s.es.ltr.feature.Feature;
+import com.o19s.es.ltr.feature.FeatureSet;
+import com.o19s.es.ltr.feature.store.CompiledLtrModel;
+import com.o19s.es.ltr.feature.store.FeatureStore;
+import com.o19s.es.ltr.feature.store.StorableElement;
+import com.o19s.es.ltr.feature.store.StoredFeature;
+import com.o19s.es.ltr.feature.store.StoredFeatureSet;
+import com.o19s.es.ltr.feature.store.StoredLtrModel;
+import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.util.IOUtils;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.Client;
@@ -48,15 +49,14 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.o19s.es.ltr.feature.Feature;
-import com.o19s.es.ltr.feature.FeatureSet;
-import com.o19s.es.ltr.feature.store.CompiledLtrModel;
-import com.o19s.es.ltr.feature.store.FeatureStore;
-import com.o19s.es.ltr.feature.store.StorableElement;
-import com.o19s.es.ltr.feature.store.StoredFeature;
-import com.o19s.es.ltr.feature.store.StoredFeatureSet;
-import com.o19s.es.ltr.feature.store.StoredLtrModel;
-import com.o19s.es.ltr.ranker.parser.LtrRankerParserFactory;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Objects;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+
+import static com.o19s.es.ltr.feature.store.StorableElement.generateId;
 
 public class IndexFeatureStore implements FeatureStore {
     public static final int VERSION = 2;
@@ -166,6 +166,20 @@ public class IndexFeatureStore implements FeatureStore {
         return model.compile(parserFactory);
     }
 
+    @Override
+    public void asyncLoad(String name, ActionListener<Feature> listener) {
+    }
+
+    @Override
+    public void asyncLoadSet(String name, ActionListener<FeatureSet> listener) {
+
+    }
+
+    @Override
+    public void asyncLoadModel(String name, ActionListener<CompiledLtrModel> listener) {
+
+    }
+
     public <E extends StorableElement> E getAndParse(String name, Class<E> eltClass, String type) throws IOException {
         GetResponse response = internalGet(generateId(type, name)).get();
         if (response.isExists()) {
@@ -173,6 +187,16 @@ public class IndexFeatureStore implements FeatureStore {
         } else {
             return null;
         }
+    }
+
+    public <E extends StorableElement> void getAndParseAsync(String name, Class<E> eltClass, String type, ActionListener<E> listener) throws IOException {
+        internalGetAsync(generateId(type, name), ActionListener.wrap((r) -> {
+            E elt = null;
+            if (r.isExists()) {
+                elt = parse(eltClass, type, r.getSourceAsBytes());
+            }
+            listener.onResponse(elt);
+        }, listener::onFailure));
     }
 
     public GetResponse getFeature(String name) {
@@ -189,6 +213,10 @@ public class IndexFeatureStore implements FeatureStore {
 
     private Supplier<GetResponse> internalGet(String id) {
         return () -> client.prepareGet(index, ES_TYPE, id).get();
+    }
+
+    private void internalGetAsync(String id, ActionListener<GetResponse> listener) {
+        client.prepareGet(index, ES_TYPE, id).execute(listener);
     }
 
     /**

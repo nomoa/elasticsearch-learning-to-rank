@@ -20,6 +20,7 @@ import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
 import com.o19s.es.ltr.feature.store.CompiledLtrModel;
 import com.o19s.es.ltr.feature.store.FeatureStore;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.cache.Cache;
 
 import java.io.IOException;
@@ -54,6 +55,21 @@ public class CachedFeatureStore implements FeatureStore {
     @Override
     public CompiledLtrModel loadModel(String id) throws IOException {
         return caches.loadModel(key(id), inner::loadModel);
+    }
+
+    @Override
+    public void asyncLoad(String name, ActionListener<Feature> listener) {
+
+    }
+
+    @Override
+    public void asyncLoadSet(String name, ActionListener<FeatureSet> listener) {
+
+    }
+
+    @Override
+    public void asyncLoadModel(String name, ActionListener<CompiledLtrModel> listener) {
+
     }
 
     Feature getCachedFeature(String id) {

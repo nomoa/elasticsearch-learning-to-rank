@@ -18,6 +18,7 @@ package com.o19s.es.ltr.feature.store;
 
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
+import org.elasticsearch.action.ActionListener;
 
 import java.io.IOException;
 
@@ -29,4 +30,7 @@ public interface FeatureStore {
     Feature load(String name) throws IOException;
     FeatureSet loadSet(String name) throws IOException;
     CompiledLtrModel loadModel(String name) throws IOException;
+    void asyncLoad(String name, ActionListener<Feature> listener);
+    void asyncLoadSet(String name, ActionListener<FeatureSet> listener);
+    void asyncLoadModel(String name, ActionListener<CompiledLtrModel> listener);
 }

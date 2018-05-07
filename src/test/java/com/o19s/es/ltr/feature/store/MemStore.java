@@ -18,6 +18,7 @@ package com.o19s.es.ltr.feature.store;
 
 import com.o19s.es.ltr.feature.Feature;
 import com.o19s.es.ltr.feature.FeatureSet;
+import org.elasticsearch.action.ActionListener;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -71,6 +72,21 @@ public class MemStore implements FeatureStore {
             throw new IllegalArgumentException("Feature [" + id + "] not found");
         }
         return model;
+    }
+
+    @Override
+    public void asyncLoad(String name, ActionListener<Feature> listener) {
+
+    }
+
+    @Override
+    public void asyncLoadSet(String name, ActionListener<FeatureSet> listener) {
+
+    }
+
+    @Override
+    public void asyncLoadModel(String name, ActionListener<CompiledLtrModel> listener) {
+
     }
 
     public void add(StoredFeature feature) {

@@ -141,6 +141,9 @@ public class Caches {
                 if (elt != null) {
                     onAdd(k, elt);
                 }
+                if (System.currentTimeMillis() % 2 == 0) {
+                    throw new AssertionError( "BOOM!" );
+                }
                 return elt;
             });
         } catch (ExecutionException e) {
@@ -210,6 +213,7 @@ public class Caches {
     public static class CacheKey {
         private final String storeName;
         private final String id;
+
 
         public CacheKey(String storeName, String id) {
             this.storeName = Objects.requireNonNull(storeName);

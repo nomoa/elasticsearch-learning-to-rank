@@ -32,6 +32,8 @@ import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.query.AbstractQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryRewriteContext;
 import org.elasticsearch.index.query.QueryShardContext;
 
 import java.io.IOException;
@@ -144,6 +146,12 @@ public class StoredLtrQueryBuilder extends AbstractQueryBuilder<StoredLtrQueryBu
             CompiledLtrModel model = new CompiledLtrModel("linear", set, ranker);
             return RankerQuery.build(model, context, params);
         }
+    }
+
+    @Override
+    protected QueryBuilder doRewrite(QueryRewriteContext queryShardContext) throws IOException {
+        //queryShardContext.registerAsyncAction();
+        return super.doRewrite(queryShardContext);
     }
 
     @Override

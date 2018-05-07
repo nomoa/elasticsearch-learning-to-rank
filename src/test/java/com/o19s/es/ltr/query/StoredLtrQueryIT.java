@@ -134,7 +134,7 @@ public class StoredLtrQueryIT extends BaseIntegrationTest {
         sr = sb.get();
         assertEquals(1, sr.getHits().getTotalHits());
         assertFalse(sr.getProfileResults().isEmpty());
-        ESLoggerFactory.getLogger(sr.toString());
+        ESLoggerFactory.getLogger("test").info("HEOHEHO" + sr.toString());
 
         StoredLtrModel model = getElement(StoredLtrModel.class, StoredLtrModel.TYPE, "my_model");
         CachesStatsNodesResponse stats = CachesStatsAction.INSTANCE.newRequestBuilder(client()).execute().get();
