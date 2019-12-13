@@ -18,13 +18,11 @@ package com.o19s.es.ltr.action;
 
 import com.o19s.es.ltr.action.CachesStatsAction.CachesStatsNodesResponse;
 import com.o19s.es.ltr.feature.store.index.Caches;
-import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
-import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -44,7 +42,7 @@ public class CachesStatsAction extends ActionType<CachesStatsNodesResponse> {
     public static final CachesStatsAction INSTANCE = new CachesStatsAction();
 
     protected CachesStatsAction() {
-        super(NAME);
+        super(NAME, CachesStatsNodesResponse::new);
     }
 
     @Override
@@ -53,6 +51,17 @@ public class CachesStatsAction extends ActionType<CachesStatsNodesResponse> {
     }
 
     public static class CachesStatsNodesRequest extends BaseNodesRequest<CachesStatsNodesRequest> {
+        public CachesStatsNodesRequest() {
+            super(new DiscoveryNode[0]);
+        }
+        public CachesStatsNodesRequest(StreamInput input) throws IOException {
+            super(input);
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            super.writeTo(out);
+        }
     }
 
     public static class CachesStatsNodesResponse extends BaseNodesResponse<CachesStatsNodeResponse> implements ToXContent {
@@ -60,7 +69,7 @@ public class CachesStatsAction extends ActionType<CachesStatsNodesResponse> {
         private Map<String, StatDetails> byStore;
 
         public CachesStatsNodesResponse(StreamInput in) throws IOException {
-            super.readFrom(in);
+            super(in);
             allStores = new StatDetails(in);
             byStore = in.readMap(StreamInput::readString, StatDetails::new);
         }
@@ -82,7 +91,7 @@ public class CachesStatsAction extends ActionType<CachesStatsNodesResponse> {
 
         @Override
         protected void writeNodesTo(StreamOutput out, List<CachesStatsNodeResponse> nodes) throws IOException {
-            out.writeStreamableList(nodes);
+            out.writeList(nodes);
         }
 
         @Override
@@ -120,30 +129,22 @@ public class CachesStatsAction extends ActionType<CachesStatsNodesResponse> {
         private StatDetails allStores;
         private Map<String, StatDetails> byStore;
 
-        CachesStatsNodeResponse() {
-            empty();
-        }
         CachesStatsNodeResponse(DiscoveryNode node) {
             super(node);
             empty();
         }
 
         CachesStatsNodeResponse(StreamInput in) throws IOException {
-            readFrom(in);
+            super(in);
+            allStores = new StatDetails(in);
+            byStore = in.readMap(StreamInput::readString, StatDetails::new);
         }
 
-            @Override
+        @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
             allStores.writeTo(out);
             out.writeMap(byStore, StreamOutput::writeString, (o, s) -> s.writeTo(o));
-        }
-
-        @Override
-        public void readFrom(StreamInput in) throws IOException {
-            super.readFrom(in);
-            allStores = new StatDetails(in);
-            byStore = in.readMap(StreamInput::readString, StatDetails::new);
         }
 
         public void empty() {
@@ -296,12 +297,4 @@ public class CachesStatsAction extends ActionType<CachesStatsNodesResponse> {
             }
         }
     }
-
-    public static class CachesStatsActionBuilder extends
-        ActionRequestBuilder<CachesStatsNodesRequest, CachesStatsNodesResponse> {
-        public CachesStatsActionBuilder(ElasticsearchClient client){
-            super(client, INSTANCE, new CachesStatsNodesRequest());
-        }
-    }
-
 }

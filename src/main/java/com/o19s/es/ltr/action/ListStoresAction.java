@@ -57,13 +57,17 @@ public class ListStoresAction extends ActionType<ListStoresActionResponse> {
             return null;
         }
 
-        public ListStoresActionRequest() {}
+        public ListStoresActionRequest(StreamInput input) throws IOException {
+            super(input);
+        }
+
+        public ListStoresActionRequest() {
+            super();
+        }
     }
 
     public static class ListStoresActionResponse extends ActionResponse implements ToXContentObject {
         private Map<String, IndexStoreInfo> stores;
-
-        ListStoresActionResponse() {}
 
         ListStoresActionResponse(StreamInput in) throws IOException {
             super(in);

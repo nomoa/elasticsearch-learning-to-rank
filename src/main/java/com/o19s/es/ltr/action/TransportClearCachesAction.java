@@ -63,12 +63,8 @@ public class TransportClearCachesAction extends TransportNodesAction<ClearCaches
 
     @Override
     protected ClearCachesNodeResponse newNodeResponse(StreamInput in) throws IOException {
-        return null; // TODO
-    }
+        return new ClearCachesNodeResponse(in);
 
-    @Override
-    protected ClearCachesNodeResponse newNodeResponse() {
-        return new ClearCachesNodeResponse();
     }
 
     @Override
@@ -95,8 +91,6 @@ public class TransportClearCachesAction extends TransportNodesAction<ClearCaches
 
     public static class ClearCachesNodeRequest extends BaseNodeRequest {
         private ClearCachesNodesRequest request;
-
-        public ClearCachesNodeRequest() {}
 
         public ClearCachesNodeRequest(ClearCachesNodesRequest req) {
             this.request = req;
